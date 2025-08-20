@@ -34,6 +34,13 @@
 extern "C" {
 #endif
 
+/* Set this macro to one plus the number of BULK-IN endpoints (1 to 4) to be configured. */
+#define CY_USB_NUM_ENDP_CONFIGURED      5
+
+#if ((CY_USB_NUM_ENDP_CONFIGURED < 2) || (CY_USB_NUM_ENDP_CONFIGURED > 5))
+#error "Invalid number of endpoints enabled"
+#endif /* CY_USB_NUM_ENDP_CONFIGURED */
+
 #define RED                             "\033[0;31m"
 #define CYAN                            "\033[0;36m"
 #define COLOR_RESET                     "\033[0m"
@@ -57,8 +64,8 @@ extern "C" {
 #define DELAY_MICRO(us)                 Cy_SysLib_DelayUs(us)
 #define DELAY_MILLI(ms)                 Cy_SysLib_Delay(ms)
 
-#define PHY_TRAINING_PATTERN_BYTE      (0x39)
-#define LINK_TRAINING_PATTERN_BYTE     (0xAA55AA55) // Working all the time with 100u phy train interval
+#define PHY_TRAINING_PATTERN_BYTE       (0x9C)
+#define LINK_TRAINING_PATTERN_BYTE      (0x125A4B78)
 #define FPS_DEFAULT                     (60)
 
 #define SET_BIT(byte, mask)		       (byte) |= (mask)
@@ -83,7 +90,13 @@ extern "C" {
 #define ASSERT_NON_BLOCK(condition, value) Cy_checkStatus(__func__, __LINE__, condition, value, false);
 #define ASSERT_AND_HANDLE(condition, value, failureHandler) Cy_checkStatusAndHandleFailure(__func__, __LINE__, condition, value, false, failureHandler);
 #define SLFF_RX_MAX_BUFFER_COUNT          (2)
-#define SLFF_RX_MAX_BUFFER_SIZE           (64512)
+
+#if CYFX_512K_RAM
+#define SLFF_RX_MAX_BUFFER_SIZE           (32768)       /* Using 2 * 32 KB buffers per endpoint. */
+#else
+#define SLFF_RX_MAX_BUFFER_SIZE           (64512)       /* Using 2 * 63 KB buffers per endpoint. */
+#endif /* CYFX_512K_RAM */
+
 #define CY_USB_DEVICE_MSG_QUEUE_SIZE      (16)
 #define CY_USB_DEVICE_MSG_SIZE            (sizeof (cy_stc_usbd_app_msg_t))
 #define CY_USB_VBUS_CHANGE_INTR           (0x0E)
@@ -98,17 +111,21 @@ extern "C" {
 #define VBUS_DETECT_STATE                 (0u)
 
 /* GPIO port pins*/
-#define TI180_CRESET_GPIO		        (P4_3_GPIO)
-#define TI180_CRESET_GPIO_PORT          (P4_3_PORT)
-#define TI180_CRESET_GPIO_PIN           (P4_3_PIN)
+#define TI180_INIT_RESET_GPIO             (P4_3_GPIO)
+#define TI180_INIT_RESET_PORT             (P4_3_PORT)
+#define TI180_INIT_RESET_PIN              (P4_3_PIN)
+
+#define TI180_CDONE_PIN                   (P4_4_PIN)
+#define TI180_CDONE_PORT                  (P4_4_PORT)
+
+#define CDONE_WAIT_TIMEOUT                (1000)
 
 #define USB3_DESC_ATTRIBUTES __attribute__ ((section(".descSection"), used)) __attribute__ ((aligned (32)))
 #define HBDMA_BUF_ATTRIBUTES __attribute__ ((section(".hbBufSection"), used)) __attribute__ ((aligned (32)))
 
 /* Vendor command code used to return WinUSB specific descriptors. */
-#define MS_VENDOR_CODE        (0xF0)
-#define CY_USB_NUM_ENDP_CONFIGURED 5 // 4: 81 to 84
-#define CY_SLFF_STREAM_EP_BURST (0x1)
+#define MS_VENDOR_CODE                  (0xF0)
+#define CY_SLFF_STREAM_EP_BURST         (0x10)
 #define PORT0_LVDS_SOCKET_START_INDEX   0x10
 #define PORT1_LVDS_SOCKET_START_INDEX   0x20
 
@@ -182,9 +199,6 @@ struct cy_stc_usb_app_ctxt_
     QueueHandle_t usbMsgQueue;
 
     uint8_t fpgaVersion;
-    uint8_t glpassiveSerialMode;
-    uint8_t *qspiWriteBuffer;
-    uint8_t *qspiReadBuffer;
 };
 
 /*FGPA Register Map*/

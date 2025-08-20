@@ -38,6 +38,7 @@
 #include "cy_lvds.h"
 #include "cy_gpif_header.h"
 #include "cybsp.h"
+#include "cy_fx_common.h"
 #include "../app_version.h"
 #include "timers.h"
 #include "cy_usb_i2c.h"
@@ -434,14 +435,26 @@ cy_stc_lvds_context_t lvdsContext;
  ****************************************************************************/
 void Cy_LVDS_LVCMOS_Init(void)
 {
-    Cy_LVDS_SetInterruptMask(LVDSSS_LVDS, LVDSSS_LVDS_LVDS_INTR_WD0_LNK0_TRAINING_DONE_Msk | LVDSSS_LVDS_LVDS_INTR_WD0_LNK1_TRAINING_DONE_Msk|
-                                            LVDSSS_LVDS_LVDS_INTR_WD0_LNK0_TRAINING_BLK_DETECTED_Msk | LVDSSS_LVDS_LVDS_INTR_WD0_LNK1_TRAINING_BLK_DETECTED_Msk |
-                                            LVDSSS_LVDS_LVDS_INTR_WD0_LNK0_TRAINING_BLK_DET_FAILD_Msk | LVDSSS_LVDS_LVDS_INTR_WD0_LNK1_TRAINING_BLK_DET_FAILD_Msk|
-                                            LVDSSS_LVDS_LVDS_INTR_WD0_LNK0_L1_ENTRY_Msk | LVDSSS_LVDS_LVDS_INTR_WD0_LNK1_L1_ENTRY_Msk |
-                                            LVDSSS_LVDS_LVDS_INTR_WD0_LNK0_L1_EXIT_Msk | LVDSSS_LVDS_LVDS_INTR_WD0_LNK1_L1_EXIT_Msk |
-                                            LVDSSS_LVDS_LVDS_INTR_WD0_LNK0_L3_ENTRY_Msk | LVDSSS_LVDS_LVDS_INTR_WD0_LNK1_L3_ENTRY_Msk | LVDSSS_LVDS_LVDS_INTR_WD0_PHY_LINK0_INTERRUPT_Msk |
-                                            LVDSSS_LVDS_LVDS_INTR_WD0_PHY_LINK1_INTERRUPT_Msk | LVDSSS_LVDS_LVDS_INTR_WD0_THREAD0_ERR_Msk | LVDSSS_LVDS_LVDS_INTR_WD0_THREAD1_ERR_Msk |
-                                            LVDSSS_LVDS_LVDS_INTR_WD0_THREAD2_ERR_Msk | LVDSSS_LVDS_LVDS_INTR_WD0_THREAD3_ERR_Msk | LVDSSS_LVDS_LVDS_INTR_MASK_WD0_GPIF0_INTERRUPT_Msk);
+    Cy_LVDS_SetInterruptMask(LVDSSS_LVDS,
+            LVDSSS_LVDS_LVDS_INTR_WD0_LNK0_TRAINING_DONE_Msk |
+            LVDSSS_LVDS_LVDS_INTR_WD0_LNK1_TRAINING_DONE_Msk|
+            LVDSSS_LVDS_LVDS_INTR_WD0_LNK0_TRAINING_BLK_DETECTED_Msk |
+            LVDSSS_LVDS_LVDS_INTR_WD0_LNK1_TRAINING_BLK_DETECTED_Msk |
+            LVDSSS_LVDS_LVDS_INTR_WD0_LNK0_TRAINING_BLK_DET_FAILD_Msk |
+            LVDSSS_LVDS_LVDS_INTR_WD0_LNK1_TRAINING_BLK_DET_FAILD_Msk|
+            LVDSSS_LVDS_LVDS_INTR_WD0_LNK0_L1_ENTRY_Msk |
+            LVDSSS_LVDS_LVDS_INTR_WD0_LNK1_L1_ENTRY_Msk |
+            LVDSSS_LVDS_LVDS_INTR_WD0_LNK0_L1_EXIT_Msk |
+            LVDSSS_LVDS_LVDS_INTR_WD0_LNK1_L1_EXIT_Msk |
+            LVDSSS_LVDS_LVDS_INTR_WD0_LNK0_L3_ENTRY_Msk |
+            LVDSSS_LVDS_LVDS_INTR_WD0_LNK1_L3_ENTRY_Msk |
+            LVDSSS_LVDS_LVDS_INTR_WD0_PHY_LINK0_INTERRUPT_Msk |
+            LVDSSS_LVDS_LVDS_INTR_WD0_PHY_LINK1_INTERRUPT_Msk |
+            LVDSSS_LVDS_LVDS_INTR_WD0_THREAD0_ERR_Msk |
+            LVDSSS_LVDS_LVDS_INTR_WD0_THREAD1_ERR_Msk |
+            LVDSSS_LVDS_LVDS_INTR_WD0_THREAD2_ERR_Msk |
+            LVDSSS_LVDS_LVDS_INTR_WD0_THREAD3_ERR_Msk |
+            LVDSSS_LVDS_LVDS_INTR_MASK_WD0_GPIF0_INTERRUPT_Msk);
     Cy_LVDS_RegisterCallback(LVDSSS_LVDS, &cb, &lvdsContext,&appCtxt);
 
     Cy_LVDS_Init(LVDSSS_LVDS, 0, &cy_lvds0_config, &lvdsContext);
@@ -495,33 +508,6 @@ void Cy_Fx3g2_InitPeripheralClocks (
         Cy_SysLib_DelayUs(10U);
         Cy_SysClk_PeriphAssignDivider(PCLK_USB_CLOCK_DEV_BRS, CY_SYSCLK_DIV_16_BIT, 2);
     }
-}
-
-/*******************************************************************************
- * Function name: Cy_Fx3G2_OnResetInit
- ****************************************************************************//**
- * TODO Ideally, this should be defined in cybsp.c
- * This function performs initialization that is required to enable scatter
- * loading of data into the High BandWidth RAM during device boot-up. The FX10/FX20
- * device comes up with the High BandWidth RAM disabled and hence any attempt
- * to read/write the RAM will cause the processor to hang. The RAM needs to
- * be enabled with default clock settings to allow scatter loading to work.
- * This function needs to be called from Cy_OnResetUser.
- *
- *******************************************************************************/
-void
-Cy_Fx3G2_OnResetInit (
-        void)
-{
-    /* Enable clk_hf4 with IMO as input. */
-    SRSS->CLK_ROOT_SELECT[4] = SRSS_CLK_ROOT_SELECT_ENABLE_Msk;
-
-    /* Enable LVDS2USB32SS IP and select clk_hf[4] as clock input. */
-    MAIN_REG->CTRL = (
-            MAIN_REG_CTRL_IP_ENABLED_Msk |
-            (1UL << MAIN_REG_CTRL_NUM_FAST_AHB_STALL_CYCLES_Pos) |
-            (1UL << MAIN_REG_CTRL_NUM_SLOW_AHB_STALL_CYCLES_Pos) |
-            (3UL << MAIN_REG_CTRL_DMA_SRC_SEL_Pos));
 }
 
 /*****************************************************************************
@@ -758,14 +744,21 @@ void Cy_USB_USBSSInit(void)
 {
     cy_stc_gpio_pin_config_t pinCfg;
     cy_stc_sysint_t intrCfg;
+    cy_en_gpio_status_t gpio_status = CY_GPIO_SUCCESS;
+    
     memset((void *)&pinCfg, 0, sizeof(pinCfg));
-
 
     /* Unlock and then disable the watchdog. */
     Cy_WDT_Unlock();
     Cy_WDT_Disable();
 
-    /* Enable interrupts. */
+#if CY_CPU_CORTEX_M4
+    /*
+     * If logging is done through the USBFS port, ISR execution is required in this application.
+     * Set BASEPRI value to 0 to ensure all exceptions can run and then enable interrupts.
+     */
+    __set_BASEPRI(0);
+#endif /* CY_CPU_CORTEX_M4 */
     __enable_irq();
 
 #if FPGA_ENABLE
@@ -778,12 +771,14 @@ void Cy_USB_USBSSInit(void)
     memset((uint8_t *)&usbdCtxt, 0, sizeof(usbdCtxt));
 
     memset((void *)&pinCfg, 0, sizeof(pinCfg));
+
     /* Configure VBus detect GPIO. */
     pinCfg.driveMode = CY_GPIO_DM_HIGHZ;
     pinCfg.hsiom     = HSIOM_SEL_GPIO;
     pinCfg.intEdge   = CY_GPIO_INTR_BOTH;
     pinCfg.intMask   = 0x01UL;
-    (void)Cy_GPIO_Pin_Init(VBUS_DETECT_GPIO_PORT, VBUS_DETECT_GPIO_PIN, &pinCfg);
+    gpio_status = Cy_GPIO_Pin_Init(VBUS_DETECT_GPIO_PORT, VBUS_DETECT_GPIO_PIN, &pinCfg);
+    ASSERT_NON_BLOCK(CY_GPIO_SUCCESS == gpio_status, gpio_status);
 
     /* Register edge detect interrupt for Vbus detect GPIO. */
 #if CY_CPU_CORTEX_M4
@@ -793,25 +788,29 @@ void Cy_USB_USBSSInit(void)
     intrCfg.cm0pSrc = VBUS_DETECT_GPIO_INTR;
     intrCfg.intrSrc = NvicMux5_IRQn;
     intrCfg.intrPriority = 3;
-#endif
+#endif /* CY_CPU_CORTEX_M4 */
     Cy_SysInt_Init(&intrCfg, Cy_VbusDetGpio_ISR);
     NVIC_EnableIRQ(intrCfg.intrSrc);
 
 #if FPGA_ENABLE
     memset((void *)&pinCfg, 0, sizeof(pinCfg));
-    /* Configure c_reset FPGA GPIO. */
-    pinCfg.driveMode = CY_GPIO_DM_STRONG_IN_OFF;
-    pinCfg.hsiom     = TI180_CRESET_GPIO;
-    (void)Cy_GPIO_Pin_Init(TI180_CRESET_GPIO_PORT, TI180_CRESET_GPIO_PIN, &pinCfg);
-    Cy_GPIO_Clr(TI180_CRESET_GPIO_PORT, TI180_CRESET_GPIO_PIN);
-    Cy_SysLib_Delay(20);
-    Cy_GPIO_Set(TI180_CRESET_GPIO_PORT, TI180_CRESET_GPIO_PIN);
 
     /* Configure input GPIO. */
     pinCfg.driveMode = CY_GPIO_DM_HIGHZ;
     pinCfg.hsiom = HSIOM_SEL_GPIO;
-    (void)Cy_GPIO_Pin_Init(T120_CDONE_PORT, T120_CDONE_PIN, &pinCfg);
-#endif
+    gpio_status = Cy_GPIO_Pin_Init(TI180_CDONE_PORT, TI180_CDONE_PIN, &pinCfg);
+    ASSERT_NON_BLOCK(CY_GPIO_SUCCESS == gpio_status, gpio_status);
+
+    /* Configure RESET FPGA GPIO. */
+    pinCfg.driveMode = CY_GPIO_DM_STRONG_IN_OFF;
+    pinCfg.hsiom     = TI180_INIT_RESET_GPIO;
+    gpio_status = Cy_GPIO_Pin_Init(TI180_INIT_RESET_PORT, TI180_INIT_RESET_PIN, &pinCfg);
+    ASSERT_NON_BLOCK(CY_GPIO_SUCCESS == gpio_status, gpio_status);
+    
+    Cy_GPIO_Clr(TI180_INIT_RESET_PORT, TI180_INIT_RESET_PIN);
+    Cy_SysLib_Delay(20);
+    Cy_GPIO_Set(TI180_INIT_RESET_PORT, TI180_INIT_RESET_PIN);
+#endif /* FPGA_ENABLE */
 
     /* Register the LVDS ISR and enable the interrupt for LVDS. */
 #if CY_CPU_CORTEX_M4
@@ -909,6 +908,42 @@ void Cy_USB_USBSSInit(void)
     NVIC_EnableIRQ(intrCfg.intrSrc);
 }
 
+/*
+ * Notes on DMA Buffer RAM Usage:
+ * 1. The initial part of the buffer RAM is reserved for the descriptors used by the DMA manager.
+ *    The space used for this is reserved using the gHbDmaDescriptorSpace array which is placed
+ *    in a section named ".hbDmaDescriptor". This array should have a minimum size of 8192 (8 KB)
+ *    and has a default size allocation of 16384 bytes (16 KB). No other data should be placed
+ *    in this section.
+ *
+ * 2. The descriptor region is followed by RW data structures which are placed in the ".descSection".
+ *    Only data members placed in this section will be initialized during the firmware load
+ *    process.
+ *
+ * 3. The ".descSection" is followed by the ".hbBufSection" which will hold data structures
+ *    which do not need to be explicitly initialized (equivalent of ".bss" section).
+ *
+ * 4. This is followed by the ".hbDmaBufferHeap" section which will be used to allocate all
+ *    the DMA buffers from. The gHbDmaBufferHeap array represents the memory region which will
+ *    be given to the DMA buffer manager to allocate buffers from and can be sized based on the
+ *    available memory. No other data or variables should be placed in this section.
+ *
+ * Any pre-initialized data which is to be placed in the High BandWidth Buffer RAM should be
+ * added to the ".descSection". Any non-initialized data which is to be placed in the High
+ * BandWidth Buffer RAM should be added to the ".hbBufSection".
+ */
+
+/* Region of 16 KB reserved for High BandWidth DMA descriptors. */
+static __attribute__ ((section(".hbDmaDescriptor"), used)) uint32_t gHbDmaDescriptorSpace[16384 / 4];
+
+#if CYFX_512K_RAM
+/* Region of 448 KB reserved for DMA buffer heap. */
+static __attribute__ ((section(".hbDmaBufferHeap"), used)) uint32_t gHbDmaBufferHeap[448 * 1024 / 4];
+#else
+/* Region of 960 KB reserved for DMA buffer heap. */
+static __attribute__ ((section(".hbDmaBufferHeap"), used)) uint32_t gHbDmaBufferHeap[960 * 1024 / 4];
+#endif /* CYFX_512K_RAM */
+
 /*****************************************************************************
  * Function Name: Cy_InitHbDma
  *****************************************************************************
@@ -933,15 +968,21 @@ bool Cy_InitHbDma(void)
         return false;
     }
 
-    /* Setup a HBW DMA descriptor list. */
-    mgrstat = Cy_HBDma_DscrList_Create(&HBW_DscrList, 256U);
+    /* Verify that gHbDmaDescriptorSpace is located at the base of the DMA buffer SRAM. */
+    if ((uint32_t)gHbDmaDescriptorSpace != CY_HBW_SRAM_BASE_ADDR) {
+        LOG_ERROR("High BandWidth DMA descriptors not placed at the correct address\r\n");
+        return false;
+    }
+
+    /* Setup a HBW DMA descriptor list using the space reserved in gHbDmaDescriptorSpace. */
+    mgrstat = Cy_HBDma_DscrList_Create(&HBW_DscrList, sizeof(gHbDmaDescriptorSpace) / 16);
     if (mgrstat != CY_HBDMA_MGR_SUCCESS)
     {
         return false;
     }
 
-    /* Initialize the DMA buffer manager. We will use 832 KB of space from 0x1C030000 onwards. */
-   mgrstat = Cy_HBDma_BufMgr_Create(&HBW_BufMgr, (uint32_t *)0x1C030000UL, 0xD0000UL);
+    /* Initialize the DMA buffer manager to use the gHbDmaBufferHeap region. */
+    mgrstat = Cy_HBDma_BufMgr_Create(&HBW_BufMgr, (uint32_t *)gHbDmaBufferHeap, sizeof(gHbDmaBufferHeap));
     if (mgrstat != CY_HBDMA_MGR_SUCCESS)
     {
         return false;
@@ -1059,7 +1100,7 @@ void Cy_USB_SSConnectionDisable(cy_stc_usb_app_ctxt_t *pAppCtxt)
  *****************************************************************************/
 void Cy_OnResetUser(void)
 {
-    Cy_Fx3G2_OnResetInit();
+    Cy_UsbFx_OnResetInit();
 }
 
 /*****************************************************************************
@@ -1098,15 +1139,17 @@ int main(void)
 #endif /* USBFS_LOGS_ENABLE */
 
     Cy_Debug_LogInit(&dbgCfg);
-    /* Create task for printing logs and check status. */
-    xTaskCreate(Cy_PrintTaskHandler, "PrintLogTask", 512, NULL, 5, &printLogTaskHandle);
     Cy_SysLib_Delay(500);
+
     Cy_Debug_AddToLog(1, "***** FX20: Slave FIFO 2-Bit Application *****\r\n");
 
     /* Print application, USBD stack and HBDMA version information. */
     Cy_PrintVersionInfo("APP_VERSION: ", APP_VERSION_NUM);
     Cy_PrintVersionInfo("USBD_VERSION: ", USBD_VERSION_NUM);
     Cy_PrintVersionInfo("HBDMA_VERSION: ", HBDMA_VERSION_NUM);
+
+    /* Create task for printing logs and check status. */
+    xTaskCreate(Cy_PrintTaskHandler, "PrintLogTask", 512, NULL, 5, &printLogTaskHandle);
 #endif /* DEBUG_INFRA_EN */
 
     /* Store IP base address in CAL context. */

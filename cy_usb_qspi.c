@@ -24,6 +24,7 @@
 * limitations under the License.
 *******************************************************************************/
 
+#if FPGA_CONFIG_EN
 
 #include "cy_usb_qspi.h"
 #include "cy_smif.h"
@@ -782,10 +783,6 @@ cy_en_smif_status_t Cy_QSPI_Read(uint32_t address, uint8_t *rxBuffer, uint32_t l
 void Cy_QSPI_Start(cy_stc_usb_app_ctxt_t *pAppCtxt,cy_stc_hbdma_buf_mgr_t *hbw_bufmgr)
 {
     cy_en_smif_status_t status = CY_SMIF_SUCCESS;
-    pAppCtxt->qspiWriteBuffer = (uint8_t *)Cy_HBDma_BufMgr_Alloc(hbw_bufmgr, MAX_BUFFER_SIZE);
-    pAppCtxt->qspiReadBuffer  = (uint8_t *)Cy_HBDma_BufMgr_Alloc(hbw_bufmgr, MAX_BUFFER_SIZE);
-    memset(pAppCtxt->qspiWriteBuffer, 0, MAX_BUFFER_SIZE);
-    memset(pAppCtxt->qspiReadBuffer, 0, MAX_BUFFER_SIZE);
 
     /* Change QSPI Clock to 150 MHz / <DIVIDER> value */
     Cy_SysClk_ClkHfDisable(1);
@@ -1035,63 +1032,42 @@ void Cy_FPGAConfigPins(cy_stc_usb_app_ctxt_t *pAppCtxt, cy_en_fpgaConfigMode_t m
 {
     cy_en_gpio_status_t status = CY_GPIO_SUCCESS;
     cy_stc_gpio_pin_config_t pinCfg;
+
     memset((void *)&pinCfg, 0, sizeof(pinCfg));
 
+    Cy_GPIO_Clr(TI180_INIT_RESET_PORT, TI180_INIT_RESET_PIN);
+    
     /* Configure output GPIOs. */
     pinCfg.driveMode = CY_GPIO_DM_STRONG_IN_OFF;
     pinCfg.hsiom = HSIOM_SEL_GPIO;
-
-    pinCfg.hsiom     = P8_4_GPIO;
-    pinCfg.driveMode = CY_GPIO_DM_STRONG_IN_OFF;
-    status = Cy_GPIO_Pin_Init(P8_4_PORT, P8_4_PIN, &pinCfg);
-    ASSERT_NON_BLOCK(status == CY_GPIO_SUCCESS, status);
-
-    pinCfg.hsiom     = P8_5_GPIO;
-    pinCfg.driveMode = CY_GPIO_DM_STRONG_IN_OFF;
-    status = Cy_GPIO_Pin_Init(P8_5_PORT, P8_5_PIN, &pinCfg);
-    ASSERT_NON_BLOCK(status == CY_GPIO_SUCCESS, status);
-
-    status = Cy_GPIO_Pin_Init(T120_INIT_RESET_PORT, T120_INIT_RESET_PIN, &pinCfg);
-    ASSERT_NON_BLOCK(status == CY_GPIO_SUCCESS, status);
-
-    Cy_GPIO_Clr(T120_INIT_RESET_PORT, T120_INIT_RESET_PIN);
-
-    status = Cy_GPIO_Pin_Init(T120_FPGA_SSN_PORT, T120_FPGA_SSN_PIN, &pinCfg);
+    status = Cy_GPIO_Pin_Init(TI180_FPGA_SSN_PORT, TI180_FPGA_SSN_PIN, &pinCfg);
     ASSERT_NON_BLOCK(status == CY_GPIO_SUCCESS, status);
 
     if(mode == ACTIVE_SERIAL_MODE)
     {
         /*FPGA's SSL_N should be HIGH for Active Serial*/
-        Cy_GPIO_Set(T120_FPGA_SSN_PORT, T120_FPGA_SSN_PIN);
+        Cy_GPIO_Set(TI180_FPGA_SSN_PORT, TI180_FPGA_SSN_PIN);
     }
     else
     {
-        Cy_GPIO_Clr(T120_FPGA_SSN_PORT, T120_FPGA_SSN_PIN);
+        Cy_GPIO_Clr(TI180_FPGA_SSN_PORT, TI180_FPGA_SSN_PIN);
     }
 
-    status = Cy_GPIO_Pin_Init(T120_PROGRAM_N_PORT, T120_PROGRAM_N_PIN, &pinCfg);
+    status = Cy_GPIO_Pin_Init(TI180_PROGRAM_N_PORT, TI180_PROGRAM_N_PIN, &pinCfg);
     ASSERT_NON_BLOCK(status == CY_GPIO_SUCCESS, status);
 
     /* PROGRAM# is connected to CSI pin of FPGA. CSI pin should be always HIGH */
-    Cy_GPIO_Set(T120_PROGRAM_N_PORT, T120_PROGRAM_N_PIN);
-
-    status = Cy_GPIO_Pin_Init(HDMI_KIT_USER_LED_PORT, HDMI_KIT_USER_LED_PIN, &pinCfg);
-    ASSERT_NON_BLOCK(status == CY_GPIO_SUCCESS, status);
-
-    status = Cy_GPIO_Pin_Init(HDMI_KIT_FPGA_SOFTRESET_PORT, HDMI_KIT_FPGA_SOFTRESET_PIN, &pinCfg);
-    ASSERT_NON_BLOCK(status == CY_GPIO_SUCCESS, status);
-    
-    Cy_GPIO_Set(HDMI_KIT_FPGA_SOFTRESET_PORT, HDMI_KIT_FPGA_SOFTRESET_PIN);
+    Cy_GPIO_Set(TI180_PROGRAM_N_PORT, TI180_PROGRAM_N_PIN);
 
 
 #if CONFIG_CDONE_AS_INPUT
     /* Configure input GPIO. */
     pinCfg.driveMode = CY_GPIO_DM_HIGHZ;
     pinCfg.hsiom = HSIOM_SEL_GPIO;
-    status = Cy_GPIO_Pin_Init(T120_CDONE_PORT, T120_CDONE_PIN, &pinCfg);
+    status = Cy_GPIO_Pin_Init(TI180_CDONE_PORT, TI180_CDONE_PIN, &pinCfg);
 #else
-    status = Cy_GPIO_Pin_Init(T120_CDONE_PORT, T120_CDONE_PIN, &pinCfg);
-    Cy_GPIO_Clr(T120_CDONE_PORT, T120_CDONE_PIN);
+    status = Cy_GPIO_Pin_Init(TI180_CDONE_PORT, TI180_CDONE_PIN, &pinCfg);
+    Cy_GPIO_Clr(TI180_CDONE_PORT, TI180_CDONE_PIN);
 #endif
     ASSERT_NON_BLOCK(status == CY_GPIO_SUCCESS, status);
 }
@@ -1116,7 +1092,7 @@ void Cy_FPGAConfigPins(cy_stc_usb_app_ctxt_t *pAppCtxt, cy_en_fpgaConfigMode_t m
 bool Cy_FPGAConfigure(cy_stc_usb_app_ctxt_t *pAppCtxt, cy_en_fpgaConfigMode_t mode)
 {
     uint32_t cdoneVal = 0;
-    uint32_t maxWait = 1000;
+    uint32_t maxWait = CDONE_WAIT_TIMEOUT;
 
     if(mode == ACTIVE_SERIAL_MODE)
     {
@@ -1124,7 +1100,7 @@ bool Cy_FPGAConfigure(cy_stc_usb_app_ctxt_t *pAppCtxt, cy_en_fpgaConfigMode_t mo
 
         DBG_APP_INFO("Starting Active Serial FPGA Configuration\r\n");
 
-        Cy_GPIO_Set(T120_INIT_RESET_PORT, T120_INIT_RESET_PIN);
+        Cy_GPIO_Set(TI180_INIT_RESET_PORT, TI180_INIT_RESET_PIN);
 
         Cy_SysLib_Delay(2000);
 
@@ -1132,7 +1108,7 @@ bool Cy_FPGAConfigure(cy_stc_usb_app_ctxt_t *pAppCtxt, cy_en_fpgaConfigMode_t mo
         while (cdoneVal == false)
         {
             /*Check if CDONE is LOW*/
-            cdoneVal = Cy_GPIO_Read(T120_CDONE_PORT, T120_CDONE_PIN);
+            cdoneVal = Cy_GPIO_Read(TI180_CDONE_PORT, TI180_CDONE_PIN);
             Cy_SysLib_Delay(1);
             maxWait--;
             if (!maxWait)
@@ -1152,7 +1128,7 @@ bool Cy_FPGAConfigure(cy_stc_usb_app_ctxt_t *pAppCtxt, cy_en_fpgaConfigMode_t mo
         {
             /*Keep the FPGA in reset if the config fails. This is to prevent the FPGA
              *from taking control of the SPI lines which prevents FX10's access to QSPI Flash */
-            Cy_GPIO_Clr(T120_INIT_RESET_PORT, T120_INIT_RESET_PIN);
+            Cy_GPIO_Clr(TI180_INIT_RESET_PORT, TI180_INIT_RESET_PIN);
             Cy_Debug_AddToLog(1, CYAN);
             Cy_Debug_AddToLog (1,"FPGA Configuration Failed! \n\r");
             Cy_Debug_AddToLog(1, COLOR_RESET);
@@ -1198,18 +1174,18 @@ bool Cy_FPGAConfigure(cy_stc_usb_app_ctxt_t *pAppCtxt, cy_en_fpgaConfigMode_t mo
         Cy_SPI_AddressToArray(bitFileStartAddress, addrArray, CY_APP_QSPI_NUM_ADDRESS_BYTES);
 
         DBG_APP_INFO("Passive Serial FPGA Config: offset 0x%x\r\n",bitFileStartAddress);
-        Cy_GPIO_Clr(T120_INIT_RESET_PORT, T120_INIT_RESET_PIN);
+        Cy_GPIO_Clr(TI180_INIT_RESET_PORT, TI180_INIT_RESET_PIN);
 
 
         Cy_SysLib_Delay(2);
 
 #if CONFIG_CDONE_AS_INPUT
         cdoneVal = true;
-        maxWait = 1000;
+        maxWait = CDONE_WAIT_TIMEOUT;
         while (cdoneVal == true)
         {
             /*Check if CDONE is LOW*/
-            cdoneVal = Cy_GPIO_Read(T120_CDONE_PORT, T120_CDONE_PIN);
+            cdoneVal = Cy_GPIO_Read(TI180_CDONE_PORT, TI180_CDONE_PIN);
             Cy_SysLib_Delay(1);
             maxWait--;
             if (!maxWait)
@@ -1218,7 +1194,7 @@ bool Cy_FPGAConfigure(cy_stc_usb_app_ctxt_t *pAppCtxt, cy_en_fpgaConfigMode_t mo
             }
         }
 #else
-        Cy_GPIO_Clr(T120_CDONE_PORT, T120_CDONE_PIN);
+        Cy_GPIO_Clr(TI180_CDONE_PORT, TI180_CDONE_PIN);
 #endif
     
         status = Cy_SMIF_TransmitCommand(SMIF0,
@@ -1247,13 +1223,13 @@ bool Cy_FPGAConfigure(cy_stc_usb_app_ctxt_t *pAppCtxt, cy_en_fpgaConfigMode_t mo
         ASSERT_NON_BLOCK(status == CY_SMIF_SUCCESS, status);
 
 
-        Cy_GPIO_Set(T120_INIT_RESET_PORT, T120_INIT_RESET_PIN);
+        Cy_GPIO_Set(TI180_INIT_RESET_PORT, TI180_INIT_RESET_PIN);
 
         Cy_SysLib_Delay(6); /*Minimum time between deassertion of CRESET_N to first valid configuration data.*/
 
         // Passive x4 - One clock cycle shifts out 4 bits. Two clock cycles => 1 byte. For X bytes, X *2 clock cycles are required
         uint32_t cycles = MAX_DUMMY_CYCLES_COUNT;
-        uint32_t remainingCycles = (pAppCtxt->glpassiveSerialMode == PASSIVE_x4)? bitFileSize*2 : bitFileSize;
+        uint32_t remainingCycles = (glpassiveSerialMode == PASSIVE_x4)? bitFileSize*2 : bitFileSize;
                 
         /* Extra clocks to get the FPGA into user mode */
         remainingCycles += DUMMY_CYCLE;
@@ -1273,11 +1249,11 @@ bool Cy_FPGAConfigure(cy_stc_usb_app_ctxt_t *pAppCtxt, cy_en_fpgaConfigMode_t mo
 
 #if CONFIG_CDONE_AS_INPUT
         cdoneVal = false;
-        maxWait = 1000;
+        maxWait = CDONE_WAIT_TIMEOUT;
         while (cdoneVal == false)
         {
             /* Check if CDONE is LOW */
-            cdoneVal = Cy_GPIO_Read(T120_CDONE_PORT, T120_CDONE_PIN);
+            cdoneVal = Cy_GPIO_Read(TI180_CDONE_PORT, TI180_CDONE_PIN);
             Cy_SysLib_Delay(1);
             maxWait--;
             if (!maxWait)
@@ -1293,15 +1269,15 @@ bool Cy_FPGAConfigure(cy_stc_usb_app_ctxt_t *pAppCtxt, cy_en_fpgaConfigMode_t mo
 
         Cy_QSPI_ConfigureSMIFPins(false);
 
-        Cy_GPIO_Pin_Init(T120_CDONE_PORT, T120_CDONE_PIN, &pinCfg);
+        Cy_GPIO_Pin_Init(TI180_CDONE_PORT, TI180_CDONE_PIN, &pinCfg);
 #endif
 
-        maxWait = 1000;
+        maxWait = CDONE_WAIT_TIMEOUT;
         cdoneVal = false;
         while (cdoneVal == false)
         { 
             /* Check if CDONE is LOW */
-            cdoneVal = Cy_GPIO_Read(T120_CDONE_PORT, T120_CDONE_PIN);
+            cdoneVal = Cy_GPIO_Read(TI180_CDONE_PORT, TI180_CDONE_PIN);
             Cy_SysLib_Delay(1);
             maxWait--;
             if (!maxWait)
@@ -1317,10 +1293,6 @@ bool Cy_FPGAConfigure(cy_stc_usb_app_ctxt_t *pAppCtxt, cy_en_fpgaConfigMode_t mo
             Cy_Debug_AddToLog(3, CYAN);
             Cy_Debug_AddToLog (3,"FPGA Configuration Done \n\r");
             Cy_Debug_AddToLog(3, COLOR_RESET);
-            Cy_GPIO_Clr(HDMI_KIT_FPGA_SOFTRESET_PORT,HDMI_KIT_FPGA_SOFTRESET_PIN);
-            Cy_SysLib_Delay(10);
-            Cy_GPIO_Set(HDMI_KIT_FPGA_SOFTRESET_PORT,HDMI_KIT_FPGA_SOFTRESET_PIN);
-            DBG_APP_TRACE("FPGA Soft Reset Done\r\n");
         }
         else
         {
@@ -1338,3 +1310,4 @@ bool Cy_FPGAConfigure(cy_stc_usb_app_ctxt_t *pAppCtxt, cy_en_fpgaConfigMode_t mo
     }
     return glIsFPGAConfigured;
 }
+#endif /* FPGA_CONFIG_EN */

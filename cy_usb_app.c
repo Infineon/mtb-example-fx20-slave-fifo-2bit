@@ -46,8 +46,8 @@ static HBDMA_BUF_ATTRIBUTES uint32_t SetSelDataBuffer[8U];
 static volatile bool cy_slff_devconfigured = false;
 static volatile bool cy_slff_IsApplnActive = false;
 extern cy_stc_hbdma_buf_mgr_t HBW_BufMgr;
-bool glIsFPGARegConfigured = false;
-extern bool glIsFPGAConfigured;
+
+
 extern uint8_t glPhyLinkTrainControl;
 
 void Cy_USBSS_DeInit(cy_stc_usbss_cal_ctxt_t *pCalCtxt);
@@ -55,6 +55,51 @@ void Cy_USBSS_DeInit(cy_stc_usbss_cal_ctxt_t *pCalCtxt);
 extern cy_israddress GetEPInDmaIsr(uint8_t epNum);
 
 #if FPGA_ENABLE
+bool glIsFPGAConfigComplete = false;
+bool glIsFPGARegConfigured = false;
+#if !FPGA_CONFIG_EN
+/*****************************************************************************
+* Function Name: Cy_IsFPGAConfigured(void)
+******************************************************************************
+* Summary:
+* Function to check for CDONE status
+*
+* Parameters:
+* None
+*
+* Return:
+*  0 if FPGA not configured, 1u if FPGA configured.
+*****************************************************************************/
+static bool Cy_IsFPGAConfigured(void)
+{
+	bool cdoneVal = false;
+    uint32_t maxWait = CDONE_WAIT_TIMEOUT;
+    
+    while (cdoneVal == false)
+    {
+        /*Check if CDONE is HIGH or FPGA is configured */
+        cdoneVal = Cy_GPIO_Read(TI180_CDONE_PORT, TI180_CDONE_PIN);
+        Cy_SysLib_Delay(1);
+        maxWait--;
+        if (!maxWait)
+        {
+            break;
+        }
+    }
+
+    if((maxWait == 0) && (cdoneVal == false))
+    {
+        LOG_ERROR("FPGA not configured \r\n");
+        return false;
+    }
+    else
+    {
+        DBG_APP_INFO("FPGA is configured \r\n");
+    } 
+    
+    return true;
+}
+#endif /* !FPGA_CONFIG_EN */
 
 /*****************************************************************************
 * Function Name: Cy_Slaveff_StreamStartStop(uint8_t device_offset, uint8_t IsStreamStart)
@@ -70,17 +115,17 @@ extern cy_israddress GetEPInDmaIsr(uint8_t epNum);
 *****************************************************************************/
 cy_en_scb_i2c_status_t Cy_Slaveff_StreamStartStop(uint8_t device_offset, uint8_t IsStreamStart)
 {
-	cy_en_scb_i2c_status_t status = CY_SCB_I2C_SUCCESS;
+    cy_en_scb_i2c_status_t status = CY_SCB_I2C_SUCCESS;
 
     cy_slff_IsApplnActive = IsStreamStart?true:false;
 
     if(IsStreamStart)
         status = Cy_I2C_Write(FPGASLAVE_ADDR,(device_offset+FPGA_DEVICE_STREAM_ENABLE_ADDRESS),CAMERA_APP_ENABLE,
-                                            FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+                FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
     else
 
         status = Cy_I2C_Write(FPGASLAVE_ADDR,(device_offset+FPGA_DEVICE_STREAM_ENABLE_ADDRESS),CAMERA_APP_DISABLE,
-                                            FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+                FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
 
     DBG_APP_INFO("cy_slff_IsApplnActive = 0x%x\n\r",cy_slff_IsApplnActive);
 
@@ -93,7 +138,7 @@ cy_en_scb_i2c_status_t Cy_Slaveff_StreamStartStop(uint8_t device_offset, uint8_t
         DBG_APP_ERR(" Cy_Slaveff_StreamStartStop: Stream App start failed \n\r");
     }
 
-	return status;
+    return status;
 }//End of Cy_Slaveff_StreamStartStop()
 
 
@@ -117,32 +162,32 @@ static cy_en_scb_i2c_status_t Cy_ConfigFpgaRegister (void)
     uint16_t hight = 2160;
     uint8_t i = 0;
 
-	/* Disable camera before configuring FPGA register */
+    /* Disable camera before configuring FPGA register */
     for (i =0 ; i < 4 ; i++)
     {
-	    status = Cy_I2C_Write(FPGASLAVE_ADDR,(DEVICE0_OFFSET + i * FPGA_DEVICE_OFFSET)+FPGA_DEVICE_STREAM_ENABLE_ADDRESS,CAMERA_APP_DISABLE,
-		                                      FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+        status = Cy_I2C_Write(FPGASLAVE_ADDR,(DEVICE0_OFFSET + i * FPGA_DEVICE_OFFSET)+FPGA_DEVICE_STREAM_ENABLE_ADDRESS,CAMERA_APP_DISABLE,
+                FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
         ASSERT_NON_BLOCK(status == CY_SCB_I2C_SUCCESS, status);
 
     }
 
-	/* write FPGA register to enable UVC */
-	status = Cy_I2C_Write(FPGASLAVE_ADDR,FPGA_UVC_U3V_SELECTION_ADDRESS,FPGA_UVC_ENABLE,
-	                                      FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+    /* write FPGA register to enable UVC */
+    status = Cy_I2C_Write(FPGASLAVE_ADDR,FPGA_UVC_U3V_SELECTION_ADDRESS,FPGA_UVC_ENABLE,
+            FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
     ASSERT_NON_BLOCK(status == CY_SCB_I2C_SUCCESS, status);
 
 
     /* Disable adding UVC header by FPGA. UVC header is added by FX10 */
-	status = Cy_I2C_Write(FPGASLAVE_ADDR,FPGA_UVC_HEADER_CTRL_ADDRESS,FPGA_UVC_HEADER_DISABLE,
-	                                      FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+    status = Cy_I2C_Write(FPGASLAVE_ADDR,FPGA_UVC_HEADER_CTRL_ADDRESS,FPGA_UVC_HEADER_DISABLE,
+            FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
 
     ASSERT_NON_BLOCK(status == CY_SCB_I2C_SUCCESS, status);
     Cy_SysLib_DelayUs(500);
 
 
     /* Number of active device list*/
-	status = Cy_I2C_Write(FPGASLAVE_ADDR,FPGA_ACTIVE_DIVICE_MASK_ADDRESS,0x0F,
-	                                      FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+    status = Cy_I2C_Write(FPGASLAVE_ADDR,FPGA_ACTIVE_DIVICE_MASK_ADDRESS,0x0F,
+            FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
 
     ASSERT_NON_BLOCK(status == CY_SCB_I2C_SUCCESS, status);
     Cy_SysLib_DelayUs(500);
@@ -152,76 +197,76 @@ static cy_en_scb_i2c_status_t Cy_ConfigFpgaRegister (void)
     {
         /* write FPGA register to Disable format converstion */
         status = Cy_I2C_Write(FPGASLAVE_ADDR,(DEVICE0_OFFSET + i * FPGA_DEVICE_OFFSET)+FPGA_DEVICE_STREAM_MODE_ADDRESS,NO_CONVERSION,
-	                                      FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+                FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
         ASSERT_NON_BLOCK(status == CY_SCB_I2C_SUCCESS, status);
 
         /* Select colorbar mode by default if DYNAMIC_VIDEOSOURCE is true*/
         status = Cy_I2C_Write(FPGASLAVE_ADDR,(DEVICE0_OFFSET + i * FPGA_DEVICE_OFFSET)+DEVICE_SOURCE_TYPE_ADDRESS,INTERNAL_COLORBAR,
-	                                      FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+                FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
         ASSERT_NON_BLOCK(status == CY_SCB_I2C_SUCCESS, status);
 
         /* Inform active threads*/
         status = Cy_I2C_Write(FPGASLAVE_ADDR,(DEVICE0_OFFSET + i * FPGA_DEVICE_OFFSET)+DEVICE_ACTIVE_TREAD_INFO_ADDRESS,1,
-	                                      FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+                FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
         ASSERT_NON_BLOCK(status == CY_SCB_I2C_SUCCESS, status);
 
         /* inform active sockets*/
         status = Cy_I2C_Write(FPGASLAVE_ADDR,(DEVICE0_OFFSET + i * FPGA_DEVICE_OFFSET)+DEVICE_THREAD2_SOCKET_INFO_ADDRESS,0,
-	                                      FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+                FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
         ASSERT_NON_BLOCK(status == CY_SCB_I2C_SUCCESS, status);
 
         /* Thread 2 information*/
         status = Cy_I2C_Write(FPGASLAVE_ADDR,(DEVICE0_OFFSET + i * FPGA_DEVICE_OFFSET)+DEVICE_THREAD2_INFO_ADDRESS,0,
-	                                      FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+                FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
         ASSERT_NON_BLOCK(status == CY_SCB_I2C_SUCCESS, status);
 
         /* Thread 1 information*/
         status = Cy_I2C_Write(FPGASLAVE_ADDR,(DEVICE0_OFFSET + i * FPGA_DEVICE_OFFSET)+DEVICE_THREAD1_INFO_ADDRESS, i,
-	                                      FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+                FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
         ASSERT_NON_BLOCK(status == CY_SCB_I2C_SUCCESS, status);
 
         /* Thread 1 socket information*/
         status = Cy_I2C_Write(FPGASLAVE_ADDR,(DEVICE0_OFFSET + i * FPGA_DEVICE_OFFSET)+DEVICE_THREAD1_SOCKET_INFO_ADDRESS,0,
-	                                      FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+                FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
         ASSERT_NON_BLOCK(status == CY_SCB_I2C_SUCCESS, status);
 
         /* Clear FPGA register during power up, this will get update when firmware detects HDMI */
         status = Cy_I2C_Write(FPGASLAVE_ADDR,(DEVICE0_OFFSET + i * FPGA_DEVICE_OFFSET)+DEVICE_HDMI_SOURCE_INFO_ADDRESS,HDMI_DISCONECT,
-	                                      FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+                FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
         ASSERT_NON_BLOCK(status == CY_SCB_I2C_SUCCESS, status);
 
         DBG_APP_INFO("DMA Buffer Size %d \n\r",FPGA_DMA_BUFFER_SIZE);
- 
+
         /* Update DMA buffer size used by Firmware */
         status = Cy_I2C_Write(FPGASLAVE_ADDR,(DEVICE0_OFFSET + i * FPGA_DEVICE_OFFSET)+DEVICE_BUFFER_SIZE_MSB_ADDRESS,CY_GET_MSB(FPGA_DMA_BUFFER_SIZE),
-	                                      FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+                FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
         ASSERT_NON_BLOCK(status == CY_SCB_I2C_SUCCESS, status);
 
         status = Cy_I2C_Write(FPGASLAVE_ADDR,(DEVICE0_OFFSET + i * FPGA_DEVICE_OFFSET)+DEVICE_BUFFER_SIZE_LSB_ADDRESS,CY_GET_LSB(FPGA_DMA_BUFFER_SIZE),
-	                                      FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+                FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
         ASSERT_NON_BLOCK(status == CY_SCB_I2C_SUCCESS, status);
 
         /* Update default resolution width size used by Firmware */
         status = Cy_I2C_Write(FPGASLAVE_ADDR,(DEVICE0_OFFSET + i * FPGA_DEVICE_OFFSET)+DEVICE_IMAGE_WIDTH_MSB_ADDRESS,CY_GET_MSB(width),
-		                                      FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+                FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
         ASSERT_NON_BLOCK(status == CY_SCB_I2C_SUCCESS, status);
 
         status = Cy_I2C_Write(FPGASLAVE_ADDR,(DEVICE0_OFFSET + i * FPGA_DEVICE_OFFSET)+DEVICE_IMAGE_WIDTH_LSB_ADDRESS,CY_GET_LSB(width),
-		                                      FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+                FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
         ASSERT_NON_BLOCK(status == CY_SCB_I2C_SUCCESS, status);
 
         /* Update default resolution hight size used by Firmware */
         status = Cy_I2C_Write(FPGASLAVE_ADDR,(DEVICE0_OFFSET + i * FPGA_DEVICE_OFFSET)+DEVICE_IMAGE_HEIGHT_MSB_ADDRESS,CY_GET_MSB(hight),
-		                                      FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+                FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
         ASSERT_NON_BLOCK(status == CY_SCB_I2C_SUCCESS, status);
 
         status = Cy_I2C_Write(FPGASLAVE_ADDR,(DEVICE0_OFFSET + i * FPGA_DEVICE_OFFSET)+DEVICE_IMAGE_HEIGHT_LSB_ADDRESS,CY_GET_LSB(hight),
-		                                      FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+                FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
         ASSERT_NON_BLOCK(status == CY_SCB_I2C_SUCCESS, status);
 
         /* default fps*/
         status = Cy_I2C_Write(FPGASLAVE_ADDR,(DEVICE0_OFFSET + i * FPGA_DEVICE_OFFSET)+DEVICE_FPS_ADDRESS,60,
-	                                      FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
+                FPGA_I2C_ADDRESS_WIDTH,FPGA_I2C_DATA_WIDTH);
         ASSERT_NON_BLOCK(status == CY_SCB_I2C_SUCCESS, status);
         Cy_SysLib_DelayUs(500);
     } // for loop
@@ -366,33 +411,44 @@ void Cy_Slff_AppTaskHandler(void *pTaskParam)
     uint8_t index = 0;
     uint8_t epNumber = 0;
 
-    /* If VBus is present, enable the USB connection. */
-    pAppCtxt->vbusPresent = (Cy_GPIO_Read(VBUS_DETECT_GPIO_PORT, VBUS_DETECT_GPIO_PIN) == VBUS_DETECT_STATE);
-    if (pAppCtxt->vbusPresent) {
-        Cy_USB_SSConnectionEnable(pAppCtxt);
-    }
-
+    DBG_APP_INFO("AppThreadCreated\r\n");
     DBG_APP_INFO("Configure FPGA\n\r");
 
 #if FPGA_ENABLE
+#if FPGA_CONFIG_EN
     Cy_FPGAConfigPins(pAppCtxt,FPGA_CONFIG_MODE);
     Cy_QSPI_Start(pAppCtxt,&HBW_BufMgr);
     Cy_SPI_FlashInit(SPI_FLASH_0, true, false);
 
-    Cy_FPGAConfigure(pAppCtxt,FPGA_CONFIG_MODE);
-    Cy_FPGAPhyLinkTraining();
-    Cy_FPGAGetVersion(pAppCtxt);
-
-    if(!glIsFPGARegConfigured)
+    if(Cy_FPGAConfigure(pAppCtxt,FPGA_CONFIG_MODE) == true)
     {
+        DBG_APP_INFO("FPGA configuration complete \r\n");
+        glIsFPGAConfigComplete = true;
+    }
+    else
+    {
+        LOG_ERROR("Failed to configure FPGA \r\n");
+    }
+#else
+    if(true == Cy_IsFPGAConfigured())
+    {
+        glIsFPGAConfigComplete = true;
+    }  
+#endif /* FPGA_CONFIG_EN */
+
+    if((glIsFPGARegConfigured == false) && (glIsFPGAConfigComplete == true))
+    {
+        Cy_FPGAPhyLinkTraining();
+        Cy_FPGAGetVersion(pAppCtxt);
+
         if(0 == Cy_ConfigFpgaRegister())
         {
             glIsFPGARegConfigured = true;
-            DBG_APP_INFO("Successfuly configured the FPGA via I2C \n\r");
+            DBG_APP_INFO("FPGA register configuration complete \n\r");
         }
         else
         {
-            LOG_ERROR("Failed to configure FPGA via I2C \r\n");
+            LOG_ERROR("Failed to configure FPGA register via I2C \r\n");
         }
     }
 #endif /* FPGA_ENABLE */
@@ -401,7 +457,12 @@ void Cy_Slff_AppTaskHandler(void *pTaskParam)
     Cy_LVDS_LVCMOS_Init();
     vTaskDelay(pdMS_TO_TICKS(100)); /// Give time to Print Task Handler to empty log buffer
 
-    DBG_APP_INFO("AppThreadCreated\r\n");
+    /* If VBus is present, enable the USB connection. */
+    pAppCtxt->vbusPresent = (Cy_GPIO_Read(VBUS_DETECT_GPIO_PORT, VBUS_DETECT_GPIO_PIN) == VBUS_DETECT_STATE);
+    if (pAppCtxt->vbusPresent) {
+        Cy_USB_SSConnectionEnable(pAppCtxt);
+    }
+
     for (;;)
     {
         /*
@@ -455,27 +516,58 @@ void Cy_Slff_AppTaskHandler(void *pTaskParam)
                 break;
 
             case CY_USB_STREAMING_START:
-                DBG_APP_INFO("CY_USB_STREAMING_START \r\n");
 #if FPGA_ENABLE
-                    for(i = 0; i < 4 ; i++)
-                    {
+                for (i = 0; i < (CY_USB_NUM_ENDP_CONFIGURED - 1); i++)
+                {
+                    if ((queueMsg.data[0] & (1 << i)) != 0) {
                         Cy_Slaveff_StreamStartStop((DEVICE0_OFFSET + i * FPGA_DEVICE_OFFSET), START);
                     }
+                }
 #endif /* FPGA_ENABLE */
-            break;
+                break;
 
             case CY_USB_STREAMING_STOP:
-                DBG_APP_INFO("CY_USB_STREAMING_STOP for EP %x\r\n", (uint8_t)queueMsg.data[0]);
+                DBG_APP_INFO("CY_USB_STREAMING_STOP for EP %x-IN\r\n", (uint8_t)queueMsg.data[0]);
                 epNumber = (uint8_t)queueMsg.data[0];
-#if FPGA_ENABLE
-            Cy_Slaveff_StreamStartStop((DEVICE0_OFFSET + ((epNumber-1) * FPGA_DEVICE_OFFSET)), STOP);
 
+#if FPGA_ENABLE
+                /* Stop data streaming from the endpoint side. */
+                Cy_Slaveff_StreamStartStop((DEVICE0_OFFSET + ((epNumber - 1) * FPGA_DEVICE_OFFSET)), STOP);
+                Cy_SysLib_Delay(1);
 #endif /* FPGA_ENABLE */
 
-            break;
+                /* Reset the DMA channel through which data is received from the LVDS SPI side. */
+                Cy_HBDma_Channel_Reset(pAppCtxt->hbBulkInChannel[epNumber]);
+
+                /* On USB 2.0 connection, reset the DataWire channel used to send data to the EPM. */
+                if (pAppCtxt->devSpeed <= CY_USBD_USB_DEV_HS) {
+                    Cy_USBHS_App_ResetEpDma(&(pAppCtxt->endpInDma[epNumber]));
+                } else {
+                    Cy_USBSS_Cal_ClkStopOnEpRstEnable(pAppCtxt->pUsbdCtxt->pSsCalCtxt, true);
+                }
+
+                /* Flush and reset the endpoint and clear the STALL bit. */
+                Cy_USBD_FlushEndp(pAppCtxt->pUsbdCtxt, epNumber, CY_USB_ENDP_DIR_IN);
+                Cy_USBD_ResetEndp(pAppCtxt->pUsbdCtxt, epNumber, CY_USB_ENDP_DIR_IN, false);
+                Cy_USB_USBD_EndpSetClearStall(pAppCtxt->pUsbdCtxt, epNumber, CY_USB_ENDP_DIR_IN, false);
+
+                if (pAppCtxt->devSpeed > CY_USBD_USB_DEV_HS) {
+                    Cy_USBSS_Cal_ClkStopOnEpRstEnable(pAppCtxt->pUsbdCtxt->pSsCalCtxt, false);
+                }
+
+                pAppCtxt->slffPendingRxBufCnt[epNumber]  = 0;
+                Cy_USBD_SendAckSetupDataStatusStage(pAppCtxt->pUsbdCtxt);
+
+                /* Now re-enable the DMA channel and re-start streaming. */
+                Cy_HBDma_Channel_Enable(pAppCtxt->hbBulkInChannel[epNumber], 0);
+
+#if FPGA_ENABLE
+                Cy_Slaveff_StreamStartStop((DEVICE0_OFFSET + (epNumber - 1) * FPGA_DEVICE_OFFSET), START);
+#endif /* FPGA_ENABLE */
+                break;
 
             default:
-            break;
+                break;
         }
 
     } /* End of for(;;) */
@@ -639,9 +731,16 @@ static void Cy_USB_AppSetupEndpDmaParamsSs(cy_stc_usb_app_ctxt_t *pUsbApp, uint8
         dmaConfig.bufferMode    = true;                         /* DMA buffer mode disabled */
         dmaConfig.prodHdrSize   = 0;
         dmaConfig.prodBufSize   = SLFF_RX_MAX_BUFFER_SIZE;
-        dmaConfig.eventEnable   = 0;                            /* Enable for DMA AUTO */
-        dmaConfig.intrEnable    = LVDSSS_LVDS_ADAPTER_DMA_SCK_INTR_PRODUCE_EVENT_Msk | 
+
+        if (pUsbApp->devSpeed >= CY_USBD_USB_DEV_SS_GEN1) {
+            dmaConfig.eventEnable = 1;                          /* Use Auto DMA in USB 3.x */
+            dmaConfig.intrEnable  = 0;
+        } else {
+            dmaConfig.eventEnable = 0;                          /* Use Manual DMA in USB 2.x */
+            dmaConfig.intrEnable  = LVDSSS_LVDS_ADAPTER_DMA_SCK_INTR_PRODUCE_EVENT_Msk | 
                                     LVDSSS_LVDS_ADAPTER_DMA_SCK_INTR_CONSUME_EVENT_Msk;
+        }
+
         dmaConfig.prodSckCount  = 1;                            /* No. of producer sockets */
         dmaConfig.consSckCount  = 1;                            /* No. of consumer Sockets */
         dmaConfig.prodSck[1]    = (cy_hbdma_socket_id_t)0;      /* Producer Socket ID: None */
@@ -703,6 +802,9 @@ static void Cy_USB_AppSetupEndpDmaParamsSs(cy_stc_usb_app_ctxt_t *pUsbApp, uint8
         }
         else
         {
+            /* Enable burst mode for better streaming throughput. */
+            Cy_USBD_SetEpBurstMode(pUsbApp->pUsbdCtxt, endpNum, CY_USB_ENDP_DIR_IN, true);
+
             mgrStat = Cy_HBDma_Channel_Enable((pUsbApp->hbBulkInChannel[endpNum]), 0);
             DBG_APP_INFO("InChnEnable status: %x\r\n", mgrStat);
         }
@@ -930,9 +1032,9 @@ void Cy_USB_AppSetCfgCallback(void *pAppCtxt, cy_stc_usb_usbd_ctxt_t *pUsbdCtxt,
     pUsbApp->devState = CY_USB_DEVICE_STATE_CONFIGURED;
 	
     /* Enable data from FPGA*/
-    DBG_APP_INFO("Enable Device\r\n");
-    xMsg.type = CY_USB_STREAMING_START;
-    xMsg.data[0] = 0x01;
+    DBG_APP_INFO("Enable streaming from %d devices\r\n", (CY_USB_NUM_ENDP_CONFIGURED - 1));
+    xMsg.type    = CY_USB_STREAMING_START;
+    xMsg.data[0] = (1UL << (CY_USB_NUM_ENDP_CONFIGURED - 1)) - 1;
     xQueueSendFromISR(pUsbApp->usbMsgQueue, &(xMsg), &(xHigherPriorityTaskWoken));
 
     DBG_APP_INFO("AppSetCfgCbEnd Done\r\n");
@@ -1085,27 +1187,11 @@ void Cy_USB_AppSetupCallback(void *pAppCtxt, cy_stc_usb_usbd_ctxt_t *pUsbdCtxt,
                 epDir = ((wIndex & 0x80UL) ? (CY_USB_ENDP_DIR_IN) : (CY_USB_ENDP_DIR_OUT));
                 epNumber = (uint32_t)(wIndex & 0x7FUL);
 
-
-				xMsg.type = CY_USB_STREAMING_STOP;
+                xMsg.type    = CY_USB_STREAMING_STOP;
                 xMsg.data[0] = epNumber;
-                status = xQueueSendFromISR(pUsbApp->usbMsgQueue, &(xMsg), &(xHigherPriorityTaskWoken));
+                status       = xQueueSendFromISR(pUsbApp->usbMsgQueue, &(xMsg), &(xHigherPriorityTaskWoken));
                 ASSERT_NON_BLOCK(pdTRUE == status,status);
-                /* Reset the DMA channel through which data is received from the LVDS SPI side. */
-                Cy_HBDma_Channel_Reset(pUsbApp->hbBulkInChannel[epNumber]);
 
-                /* On USB 2.0 connection, reset the DataWire channel used to send data to the EPM. */
-                if (pUsbApp->devSpeed <= CY_USBD_USB_DEV_HS)
-                {
-                    Cy_USBHS_App_ResetEpDma(&(pUsbApp->endpInDma[epNumber]));
-                }
-
-                /* Flush and reset the endpoint and clear the STALL bit. */
-                Cy_USBD_FlushEndp(pUsbdCtxt, epNumber, CY_USB_ENDP_DIR_IN);
-                Cy_USBD_ResetEndp(pUsbdCtxt, epNumber, CY_USB_ENDP_DIR_IN, false);
-                Cy_USB_USBD_EndpSetClearStall(pUsbdCtxt, ((uint32_t)wIndex & 0x7FUL), epDir, false);
-                pUsbApp->slffPendingRxBufCnt[epNumber]  = 0;
-
-                Cy_USBD_SendAckSetupDataStatusStage(pUsbdCtxt);
                 isReqHandled = true;
             }
         }
